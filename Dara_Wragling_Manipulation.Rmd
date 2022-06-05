@@ -1,0 +1,111 @@
+---
+title: "Data_Wrangling_1"
+author: "Siquan"
+date: "9/19/2019"
+output: github_document
+---
+Tidyverse package all function in it has a df input and df output
+pip %>% could help a lot --- the output of previous function will be the input of next funtion
+
+```{r}
+library(tidyverse)
+#When you library tydyverse, you can see that it involves 8 packages
+#Also you can see that different packages might have same function names
+#filter both 
+```
+
+```{r}
+litters_data = read_csv("./data_import_examples/FAS_litters.csv")
+litters_data = janitor::clean_names(litters_data)
+pups_data = read_csv("./data_import_examples/FAS_pups.csv")
+pups_data = janitor::clean_names(pups_data)
+#R only knows the dataframe overall, eg it knows litters_data this dataframe, but don't know the 'Group' column. If you want to access the group variable, you need to use pull(df, Group)
+```
+##The following only works on selectiong columns rather than selecting certain values
+```{r}
+select(litters_data,group,litter_number)#specify the columns you want to keep by naming all of them
+select(litters_data,group,litter_number,gd0_weight, starts_with("pups"))
+select(litters_data,group,litter_number,gd0_weight, everything())
+select(litters_data,-group)#Remove the group column
+select(litters_data,litter_number,gd0_weight:pups_born_alive)
+#Remember that now we still don't change the original dataframe, just select sth from it. If I would like to save these changes, we should save it as a new variable
+select(litters_data, GROUP = group, litter_number)#Change the name of the 'group' column
+rename(litters_data, GROUP = group)#Only rename certain columns but not do the selection
+```
+
+Filtering: Works on certain values, also gives an input dataframe, and tell R how I would like to do the filtering.
+```{r}
+filter(litters_data, group == "Con7") #logical operator, check whether the group variable is Con7, keeps the rows when the logical operator is true.
+filter(litters_data, gd_of_birth == 20)#Can also select accoridng to numerical values
+filter(litters_data, gd_of_birth <20, group == "Con7")#Could have multiple logical conditions separated by comma
+filter(litters_data, group == "Con7" | group == "Mod8")#Or
+filter(litters_data, group %in% c("con7","Mod8"))#An equivalent way to do this--preferred sinc or(|) is a little bit difficut to debug
+filter(litters_data, gd0_weight + gd18_weight < 70)
+#Don;t do filter(litters_data, !is.na(gd0_weight))
+drop_na(litters_data, gd0_weight)
+drop_na(litters_data, gd0_weight, gd18_weight)
+
+```
+##Mutate
+```{r}
+mutate(litters_data, wt_gain = gd18_weight - gd0_weight,
+       group = str_to_lower(group))#Could create new variables(column) and modify existing columns
+```
+## Arrange
+```{r}
+arrange(litters_data, pups_born_alive)
+arrange(litters_data, desc(pups_born_alive))
+arrange(litters_data, pups_born_alive,gd0_weight)
+```
+## pipe ...
+Creating a collection of commands
+```{r}
+#Old-school way
+litters_data_raw = read_csv("./data_import_examples/FAS_litters.csv",
+  col_types = "ccddiiii")
+litters_data_clean_names = janitor::clean_names(litters_data_raw)
+litters_data_selected_cols = select(litters_data_clean_names, -pups_survive)
+litters_data_with_vars = 
+  mutate(
+    litters_data_selected_cols, 
+    wt_gain = gd18_weight - gd0_weight,
+    group = str_to_lower(group))
+litters_data_with_vars_without_missing = 
+  drop_na(litters_data_with_vars, wt_gain)
+litters_data_with_vars_without_missing
+#A nested-approach(not suggested)---Very awful!!
+litters_data_clean = 
+  drop_na(
+    mutate(
+      select(
+        janitor::clean_names(
+          read_csv("./data_import_examples/FAS_litters.csv", col_types = "ccddiiii")
+          ), 
+      -pups_survive
+      ),
+    wt_gain = gd18_weight - gd0_weight,
+    group = str_to_lower(group)
+    ),
+  wt_gain
+  )
+
+litters_data_clean
+```
+```{r}
+#Shift + Ctrl + m will produce %>% 
+litters_data = read_csv("./data_import_examples/FAS_litters.csv")%>% 
+  janitor::clean_names() %>% 
+  select(-pups_survive) %>% 
+  mutate(
+    wt_gain = gd18_weight - gd0_weight,
+    group = str_to_lower(group)
+  ) %>% 
+  drop_na(gd0_weight)
+```
+```{r}
+#But pip will only transfer the argument into the first argument(in tidyverse), if you want to place sth in other position, you need to clarify
+litters_data %>%
+  lm(wt_gain ~ pups_born_alive, data = .) %>%
+  broom::tidy()###need a placeholder!!!
+```
+
