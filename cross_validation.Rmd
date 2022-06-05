@@ -1,0 +1,132 @@
+---
+title: "CV"
+author: "Siquan"
+date: "11/15/2019"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(modelr)
+library(mgcv)
+set.seed(1)
+```
+
+## Last HW Q3, will have publishing bias since the result you see are only those significant ones, so the beta estimates is indeed unbiased
+
+Simulate a dataset to illustrate what is too-simple model and what is too-complicated model
+
+```{r}
+nonlin_df = 
+  tibble(
+    id = 1:100,
+    x = runif(100, 0, 1),
+    y = 1 - 10 * (x - .3) ^ 2 + rnorm(100, 0, .3)
+  )
+
+nonlin_df %>% 
+  ggplot(aes(x = x, y = y)) + 
+  geom_point() + theme_bw()
+```
+
+#C-V by hand, splitting the training and testing data by hand
+```{r}
+#Select a fraction of the original dataset
+#Give you everything in nonlin_df but not in train_df, and join them together
+train_df = sample_n(nonlin_df, 80)
+test_df = anti_join(nonlin_df, train_df, by = "id")
+
+ggplot(train_df, aes(x = x, y = y)) + 
+  geom_point() + 
+  geom_point(data = test_df, color = "red")
+```
+
+Try different models
+```{r}
+linear_mod = lm(y ~ x, data = train_df)
+smooth_mod = mgcv::gam(y ~ s(x), data = train_df)
+wiggly_mod = mgcv::gam(y ~ s(x, k = 30), sp = 10e-6, data = train_df)
+```
+
+Visulize the three models
+```{r}
+train_df %>% 
+  add_predictions(linear_mod) %>% 
+  ggplot(aes(x = x, y = y)) + geom_point() + 
+  geom_line(aes(y = pred), color = "red")
+```
+```{r}
+train_df %>% 
+  add_predictions(smooth_mod) %>% 
+  ggplot(aes(x = x, y = y)) + geom_point() + 
+  geom_line(aes(y = pred), color = "red")
+```
+```{r}
+train_df %>% 
+  add_predictions(wiggly_mod) %>% 
+  ggplot(aes(x = x, y = y)) + geom_point() + 
+  geom_line(aes(y = pred), color = "red")
+```
+
+Training set MSE
+```{r}
+rmse(linear_mod, test_df)
+rmse(smooth_mod, test_df)
+rmse(wiggly_mod, test_df)
+```
+
+Don't want to do CV manually
+
+Now you have list columns
+
+```{r}
+cv_df = 
+  crossv_mc(nonlin_df, 100) #How many times you want to do simulation
+```
+
+When you simply pull out, for efficacy it will not show the full details,but if you save it as a dataframe, it will show everything
+```{r}
+cv_df %>% pull(train) %>% .[[1]] 
+```
+```{r}
+cv_df %>% pull(train) %>% .[[1]] %>% as_tibble
+cv_df %>% pull(test) %>% .[[1]] %>% as_tibble
+```
+
+Tidy them into a dataframe containing list columns
+```{r}
+cv_df =
+  cv_df %>% 
+  mutate(
+    train = map(train, as_tibble),
+    test = map(test, as_tibble))
+cv_df
+```
+
+Try fitting the linear model to all of these training/test data
+
+##.x is just a placeholder
+```{r}
+cv_df = 
+  cv_df %>% 
+  mutate(linear_mod  = map(train, ~lm(y ~ x, data = .x)),
+         smooth_mod  = map(train, ~mgcv::gam(y ~ s(x), data = .x)),
+         wiggly_mod  = map(train, ~gam(y ~ s(x, k = 30), sp = 10e-6, data = .x))) %>% 
+  mutate(rmse_linear = map2_dbl(linear_mod, test, ~rmse(model = .x, data = .y)),
+         rmse_smooth = map2_dbl(smooth_mod, test, ~rmse(model = .x, data = .y)),
+         rmse_wiggly = map2_dbl(wiggly_mod, test, ~rmse(model = .x, data = .y)))
+cv_df
+```
+
+```{r}
+cv_df %>% 
+  select(starts_with("rmse")) %>% 
+  pivot_longer(
+    everything(),
+    names_to = "model", 
+    values_to = "rmse",
+    names_prefix = "rmse_") %>% 
+  mutate(model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) + geom_violin()
+```
+
