@@ -1,0 +1,61 @@
+---
+title: "Data_Wrangling_1"
+author: "Siquan"
+date: "9/17/2019"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+```{r}
+## Reads in a dataset
+#have absoulte path and relative path
+#When you open a R project, the working diretory is where this projects lies
+#Tyr to use relative path in this course ---sb could open your file afterwards
+#One disadvantage of absoulte path is that if you change/remove the folder, it will no longer work and please do not use setwd() anymore! Also use relative path to load the data!
+litters_data = read_csv(file = "./data_import_examples/FAS_litters.csv")
+#Don't use ".", use "_"!!!
+#When you load the data, the first thing is to print it out
+litters_data = janitor::clean_names(litters_data) #help you clean the names
+pups_data = read_csv(file = "./data_import_examples/FAS_pups.csv")
+#Use function clean_names from package(janitor)
+pups_data = janitor::clean_names(pups_data)
+pups_data_1 = read_csv(file ="C:/Users/Siquan Wang/Desktop/Columbia_Course/Data_Science/Data_Wrangling_1/data_import_examples/FAS_pups.csv")
+head(pups_data)
+tail(pups_data)
+skimr::skim(pups_data)#Give u a brief summary regarding the data
+```
+```{r}
+litters_data_2 = read_csv(file = "./data_import_examples/FAS_litters.csv",
+  col_types = cols(
+    Group = col_character(),
+    `Litter Number` = col_character(),
+    `GD0 weight` = col_double(),
+    `GD18 weight` = col_double(),
+    `GD of Birth` = col_integer(),
+    `Pups born alive` = col_integer(),
+    `Pups dead @ birth` = col_integer(),
+    `Pups survive` = col_integer()
+  )#Specify the types of the elements in each columns
+)
+tail(litters_data_2)
+```
+
+
+```{r}
+#Before it's hard to read excel file into R, usually convert it into csv and use #read_csv, but now we have read_excel
+library(readxl)
+mlb11_data = read_excel("./data_import_examples//mlb11.xlsx", n_max = 20)
+head(mlb11_data, 5)
+```
+
+
+```{r}
+#Read sas data
+pulse_data = haven::read_sas("./data_import_examples/public_pulse_data.sas7bdat")
+head(pulse_data)
+```
+
