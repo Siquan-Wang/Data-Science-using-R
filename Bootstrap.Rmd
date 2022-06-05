@@ -1,0 +1,129 @@
+---
+title: "Bootstrap"
+author: "Siquan"
+date: "11/16/2019"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(p8105.datasets)
+set.seed(1)
+```
+
+Generate some random samples: one case in which the usual linear regression assumptions hold and one case in which they don’t.
+```{r}
+n_samp = 250
+
+sim_df_const = 
+  tibble(
+    x = rnorm(n_samp, 1, 1),
+    error = rnorm(n_samp, 0, 1),
+    y = 2 + 3 * x + error
+  )
+
+sim_df_nonconst = sim_df_const %>% 
+  mutate(
+  error = error * .75 * x,
+  y = 2 + 3 * x + error
+)
+```
+
+```{r}
+sim_df = 
+  bind_rows(const = sim_df_const, nonconst = sim_df_nonconst, .id = "data_source") 
+
+sim_df %>% 
+  ggplot(aes(x = x, y = y)) + 
+  geom_point(alpha = .5) +
+  stat_smooth(method = "lm") +
+  facet_grid(~data_source)
+```
+
+Note the above non-constant variance phenomenon above
+
+Fit two models
+```{r}
+sim_df_const %>% 
+  lm(y~x, data = .) %>% 
+  broom::tidy()
+sim_df_nonconst %>% 
+  lm(y~x, data = .) %>% 
+  broom::tidy()
+```
+
+## how can I bootstrap
+
+write a function to draw a bootstrap sample based on a dataframe
+```{r}
+boot_sample = function(df){
+  sample_frac(df, size = 1, replace = TRUE)
+}
+
+```
+```{r}
+boot_sample(df = sim_df_nonconst) %>% 
+  ggplot(aes(x=x, y=y))+
+  geom_point(alpha = 0.5)
+```
+
+Organize a dataframe
+```{r}
+boot_starps = 
+  tibble(
+    strap_num = 1:1000,
+    strap_sample = rerun(1000, boot_sample(df = sim_df_nonconst))
+  )
+boot_starps
+```
+
+Do some kind of analysis
+```{r}
+bootstrap_results = 
+  boot_starps %>% 
+  mutate(
+    models = map(strap_sample, ~lm(y ~ x, data = .x) ),
+    results = map(models, broom::tidy)) %>% 
+  select(-strap_sample, -models) %>% 
+  unnest(results) %>% 
+  group_by(term) %>% 
+  summarize(boot_se = sd(estimate))
+bootstrap_results
+```
+
+## Try the modelr package
+```{r}
+boot_straps = 
+  sim_df_nonconst %>% 
+  modelr::bootstrap(1000)
+boot_straps
+boot_straps$strap[[1]]
+as_data_frame(boot_straps$strap[[1]])
+```
+
+Repeat the pipeline
+```{r}
+sim_df_nonconst %>% 
+  modelr::bootstrap(n = 1000) %>% 
+  mutate(
+    models = map(strap, ~lm(y ~ x, data = .x) ),
+    results = map(models, broom::tidy)) %>% 
+  select(-strap, -models) %>% 
+  unnest(results) %>% 
+  group_by(term) %>% 
+  summarize(boot_se = sd(estimate))
+```
+
+##What if your assumption aren't wrong?
+```{r}
+sim_df_const %>% 
+  modelr::bootstrap(n = 1000) %>% 
+  mutate(models = map(strap, ~lm(y ~ x, data = .x) ),
+         results = map(models, broom::tidy)) %>% 
+  select(-strap, -models) %>% 
+  unnest(results) %>% 
+  group_by(term) %>% 
+  summarize(boot_se = sd(estimate))
+```
+
+If the underlying assumption is right, the results seems okay
