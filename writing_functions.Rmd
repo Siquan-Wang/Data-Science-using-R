@@ -1,0 +1,149 @@
+---
+title: "Writing Functions"
+author: "Siquan"
+date: "10/27/2019"
+output: github_document
+---
+
+#How to make your code more efficient, especially when you need to do same thing for more than one time---write a function!
+
+#Generally you don't make your function to use stuff in your global environmet (everytime you call a function, it creats a local environment)
+
+```{r}
+library(tidyverse)
+library(rvest)
+```
+#Get started
+Do some variable standardization
+```{r}
+x = rnorm(n=30, mean = 4, sd =2.3)
+x_again = rnorm(n=30, mean =6, sd =3)
+(x-mean(x))/sd(x)
+(x_again-mean(x_again))/sd(x_again)
+```
+Now a function
+```{r}
+z_score = function(input_x){
+  
+  if (!is.numeric(input_x)){
+    stop("Argument x should be numeric")
+  }else if (length(input_x) <=3){
+    stop("X should be longer")
+  }
+  list(
+  mean_input = mean(input_x),
+  sd_input = sd(input_x),
+  z_score = (input_x-mean(input_x))/sd(input_x)
+  )
+
+}
+```
+List could let you combine everything you would like to combine into R structure
+
+Try out the function
+```{r}
+z_score(input_x=x)
+```
+#Let's look at multiple inputs
+```{r}
+sim_regression = function(n, beta0, beta1){
+  
+  sim_data = tibble(
+    x = rnorm(n, mean =1, sd =1),
+    y = beta0+beta1*x+rnorm(n,mean=0, sd=1)
+  )
+  
+  ls_fit = lm(y~x, data = sim_data)
+  
+  
+  tibble(
+    beta0_hat = coef(ls_fit)[1],
+    beta1_hat = coef(ls_fit)[2]
+  )
+}
+```
+
+```{r}
+sim_regression(100,2,3)
+```
+#Script Amazon
+Here is the code we write before to get the information about review on Amazon
+```{r}
+url = "https://www.amazon.com/product-reviews/B00005JNBQ/ref=cm_cr_arp_d_viewopt_rvwer?ie=UTF8&reviewerType=avp_only_reviews&sortBy=recent&pageNumber=1"
+
+dynamite_html = read_html(url)
+
+review_titles = 
+  dynamite_html %>%
+  html_nodes("#cm_cr-review_list .review-title") %>%
+  html_text()
+review_stars = 
+  dynamite_html %>%
+  html_nodes("#cm_cr-review_list .review-rating") %>%
+  html_text()
+review_text = 
+  dynamite_html %>%
+  html_nodes(".review-text-content span") %>%
+  html_text()
+
+reviews = tibble(
+  title = review_titles,
+  stars = review_stars,
+  text = review_text
+)
+```
+
+```{r}
+read_page_reviews = function(page_url) {
+  
+  dynamite_html = read_html(page_url)
+  review_titles = 
+    dynamite_html %>%
+    html_nodes("#cm_cr-review_list .review-title") %>%
+    html_text()
+  review_stars = 
+    dynamite_html %>%
+    html_nodes("#cm_cr-review_list .review-rating") %>%
+    html_text()
+  
+  review_text = 
+    dynamite_html %>%
+    html_nodes(".review-text-content span") %>%
+    html_text()
+  
+  reviews = tibble(
+    title = review_titles,
+    stars = review_stars,
+    text = review_text
+  )
+  
+  reviews
+    
+}
+```
+
+```{r}
+read_page_reviews("https://www.amazon.com/product-reviews/B00005JNBQ/ref=cm_cr_arp_d_viewopt_rvwer?ie=UTF8&reviewerType=avp_only_reviews&sortBy=recent&pageNumber=1")
+```
+#Pass a function into the argument of another function
+```{r}
+x =rnorm(25,0,1)
+my_summary = function(x,summ_function){
+  summ_function(x)
+}
+my_summary(x, mean)
+```
+
+#Scope of variables
+```{r}
+f = function(x) {
+  z = x + y
+  z
+}
+
+x = 1
+y = 2
+
+f(x = y)
+```
+
