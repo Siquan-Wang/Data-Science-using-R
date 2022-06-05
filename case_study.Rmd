@@ -1,0 +1,99 @@
+---
+title: "case_study"
+author: "Siquan"
+date: "10/8/2019"
+output: github_document
+---
+
+To use %>% , you need to load TIDYVERSE!
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(p8105.datasets)
+library(leaflet)
+data("nyc_airbnb")
+```
+
+```{r}
+nyc_airbnb %>% 
+  view()
+```
+How are air bnb prices related to rent in the neighborhood?
+Which neighborhood is most expensive and which is cheapest?
+Do hosts with multiple sites have higher prices or ratings>
+Doe sprice have any relation to ratings?
+Is average length of stay related to neighborhood? price? ets?
+```{r}
+ggplot(nyc_airbnb,aes(x=price, fill = neighbourhood))+
+  geom_histogram(position = "dodge")
+```
+
+```{r}
+nyc_airbnb %>% 
+  
+  mutate(neighbourhood = as.factor(neighbourhood),
+         stars = review_scores_location /2,
+         borough = neighbourhood_group) %>% 
+  filter(borough == "Manhattan") %>% 
+  ggplot(aes(x = price, y = neighbourhood))+
+  geom_point()
+```
+```{r}
+nyc_airbnb %>% 
+  group_by(neighbourhood_group, room_type) %>% 
+  summarize(med_price = median(price, na.rm = TRUE)) %>% 
+  pivot_wider(
+    names_from = room_type,
+    values_from = med_price
+  )
+```
+```{r}
+nyc_airbnb %>% 
+  filter(neighbourhood_group == "Staten Island", room_type == "Shared room") %>% 
+  view()
+```
+
+```{r}
+nyc_airbnb %>% 
+  count(neighbourhood_group, room_type) %>% 
+  pivot_wider(
+    names_from = room_type,
+    values_from = n
+  )
+```
+
+```{r}
+nyc_airbnb %>% 
+  group_by(neighbourhood_group, neighbourhood) %>% 
+  summarize(med_price = median(price, na.rm = TRUE),
+            mean_price = mean(price, na.rm = TRUE)) %>% 
+  ggplot(aes(x = mean_price, y = med_price))+
+  geom_point()+
+  facet_grid(~neighbourhood_group)
+```
+```{r}
+nyc_airbnb %>% 
+  count(neighbourhood)
+```
+```{r}
+nyc_airbnb %>% 
+  filter(neighbourhood == "Astoria") %>% 
+  ggplot(aes(x = host_name, y = price))+
+  geom_point()
+```
+
+```{r}
+nyc_airbnb %>% 
+  filter(neighbourhood_group == "Manhattan") %>% 
+  ggplot(aes(x = lat, y = long, color = price))+
+  geom_point(alpha = 0.3)
+```
+```{r}
+nyc_airbnb %>% 
+  filter(neighbourhood_group == "Manhattan",
+         price > 2000) %>% 
+  leaflet() %>% 
+  addTiles() %>% 
+  addMarkers(~lat, ~long)#Longitude and latitude coordinates
+```
+
