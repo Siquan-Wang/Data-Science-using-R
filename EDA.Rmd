@@ -1,0 +1,180 @@
+---
+title: "EDA"
+author: "Siquan"
+date: "10/3/2019"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+Set up some global criteria for all the plots you produced
+```{r}
+library(tidyverse)
+weather_df = 
+  rnoaa::meteo_pull_monitors(c("USW00094728", "USC00519397", "USS0023B17S"),
+                      var = c("PRCP", "TMIN", "TMAX"), 
+                      date_min = "2017-01-01",
+                      date_max = "2017-12-31") %>% 
+  mutate(
+        name = recode(id, USW00094728 = "CentralPark_NY", 
+                      USC00519397 = "Waikiki_HA",
+                      USS0023B17S = "Waterhole_WA"),
+    tmin = tmin / 10,
+    tmax = tmax / 10,
+    month = lubridate::floor_date(date, unit = "month")) %>%
+  select(name, id, date, month, everything())
+```
+Try group_by and summary()
+```{r}
+weather_df %>% 
+  group_by(name, month)
+```
+```{r}
+weather_df %>%
+  group_by(month) %>%
+  summarize(n = n(),
+            n_unique = n_distinct(date))
+```
+If you just want to count, you do not need to use group_by() and summarize(), just use count()
+```{r}
+weather_df %>% 
+  count(name,month, name = "hahaha") #You can name the count column as you want
+```
+Awful table() function, cannot do on df, must need to first pull it out, then use table().
+Also the result is not a dataframe, you cnanot do anything else on the result of table()
+```{r}
+weather_df %>% 
+  pull(name) %>% 
+  table()
+```
+(Let's make a nice table)
+```{r}
+weather_df %>% 
+  count(name) %>% 
+  knitr::kable()
+```
+```{r}
+weather_df %>% 
+  filter(name != "Waikiki_HA") %>% 
+  mutate(
+    cold = case_when(
+      tmax <5 ~ "cold",
+      tmax <=5 ~ "not cold",
+      TRUE ~ ""#Creat a new variable based more than two sceniros, if True, just give  ablank spot
+    )
+  ) %>% 
+  group_by(name, cold) %>% 
+  count() %>% 
+  pivot_wider(
+    names_from = name,
+    values_from = n
+  )
+```
+Create the 2*2 table by another function
+```{r}
+weather_df %>% 
+  count(name) %>% 
+  knitr::kable()
+```
+Produce a 2*2 table by changing into wide form
+```{r}
+weather_df %>% 
+  filter(name != "Waikiki_HA") %>% 
+  mutate(
+    cold = case_when(
+      tmax <5 ~ "cold",
+      tmax <=5 ~ "not cold",
+      TRUE ~ ""#Creat a new variable based more than two sceniros, if True, just give  ablank spot
+    )
+  ) %>% 
+  janitor::tabyl(name,cold)
+
+```
+Do some general summaries
+```{r}
+weather_df %>% 
+  group_by(name) %>% 
+  summarize(
+    n = n(),
+    mean_tmax = mean(tmax),
+    sd_tmax = sd(tmax),
+    median_prcp = median(prcp)
+  )
+```
+Have missing value, check NA
+```{r}
+weather_df %>% 
+  filter(is.na(tmax))
+```
+One way to deal with NA (But not set this in default, you need to see whether there is NA in the dataset)
+```{r}
+weather_df %>% 
+  group_by(name) %>% 
+  summarize(
+    n = n(),
+    mean_tmax = mean(tmax,na.rm = TRUE),
+    sd_tmax = sd(tmax,na.rm = TRUE),
+    median_tmax = median(tmax,na.rm = TRUE)
+  )
+```
+Create a visual summary (If you create a df by group_by() and summarize(), you can repeat what you can do on a df as previous letures)
+```{r}
+weather_df %>%
+  group_by(name, month) %>%
+  summarize(mean_tmax = mean(tmax, na.rm = TRUE)) %>%
+  ggplot(aes(x = month, y = mean_tmax, color = name)) + 
+    geom_point() + geom_line() + 
+    theme(legend.position = "bottom")
+```
+```{r}
+weather_df %>%
+  group_by(name, month) %>%
+  summarize(mean_tmax = mean(tmax, na.rm = TRUE)) %>%
+  pivot_wider(
+    names_from = name,
+    values_from = mean_tmax
+  ) %>% 
+  knitr::kable(digits = 1)
+```
+If you group and forget about it, you will have trouble!
+But you can always ungroup your df
+```{r}
+weather_df %>% 
+  group_by(name) %>% 
+  ungroup()
+```
+```{r}
+weather_df %>% 
+  group_by(name) %>% 
+  mutate(
+    mean_tmax = mean(tmax, na.rm = TRUE),
+    centered_tmax = tmax - mean_tmax
+#Now mutate will only do the mutation within groups
+  ) %>% 
+  ggplot(aes(x = date, y = centered_tmax, color = name)) + 
+  geom_point()
+```
+Window function in grouped mutates
+```{r}
+weather_df %>% group_by(name,month) %>% 
+  mutate(
+    temp_ranking = min_rank(tmax)
+  ) %>%
+  filter(temp_ranking == 1) #This window function is useful when doing filtering afterwards
+#Find the coldest daten within each group
+```
+```{r}
+weather_df %>% 
+  group_by(name) %>% 
+  mutate(
+    lagged_tmax = lag(tmax),
+    one_day_tmax_change = tmax - lagged_tmax
+  ) %>% 
+  summarize(sd_daily_change = sd(one_day_tmax_change, na.rm = TRUE))
+```
+Mutate is to change the df (like adding a new column or something), but summarize() is just gives u some summary statistics
+
+##lag() function only works with the long formate
+
+group_by() only works within the code chunk if you do not save it
