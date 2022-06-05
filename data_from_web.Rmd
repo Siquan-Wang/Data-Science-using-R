@@ -1,0 +1,87 @@
+---
+title: "data_from_web"
+author: "Siquan"
+date: "10/10/2019"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+API provided ways to communicate with machines, Web API gives you a way to request data from a server. But different websites might have different APIs and different API might return different data!
+```{r}
+library(tidyverse)
+library(rvest)
+library(httr)
+```
+Read in the NSDUH Data
+```{r}
+url = "http://samhda.s3-us-gov-west-1.amazonaws.com/s3fs-public/field-uploads/2k15StateFiles/NSDUHsaeShortTermCHG2015.htm"
+drug_use_xml = read_html(url)
+
+drug_use_xml %>% #Pull out sth we are interested in 
+  html_nodes(css = "table") %>% 
+  .[[1]]#Only interested in the tables in the website
+```
+. is a plcaeholder for the list that we are just getting from the html tables
+```{r}
+#Alternative way
+table_list = drug_use_xml %>% 
+  html_nodes(css = "table")
+table_list[[1]] %>% 
+  html_table() %>% ##Hard to deal with, since the footnote underbelow will produce some problems
+  slice(-1) %>%#Take out the foot notes 
+  as_tibble()
+
+```
+```{r}
+nyc_cost = 
+  read_html("https://www.bestplaces.net/cost_of_living/city/new_york/new_york") %>%
+  html_nodes(css = "table") %>%
+  .[[1]] %>%
+  html_table(header = TRUE)
+```
+Try some difficult data(not nicely formated) like the Harry Porter!
+```{r}
+hpsaga_html = 
+  read_html("https://www.imdb.com/list/ls000630791/")
+```
+Just click on the website to get the desirable CSS selectors
+```{r}
+hp_movie_title = 
+  hpsaga_html %>% 
+  html_nodes(".lister-item-header a") %>% #The nodes have been shown in SelectorGadget
+  html_text()
+
+hp_movie_money = 
+  hpsaga_html %>%
+  html_nodes(".text-small:nth-child(7) span:nth-child(5)") %>%
+  html_text()
+
+hp_movie_runtime = 
+  hpsaga_html %>%
+  html_nodes(".runtime") %>%
+  html_text()
+
+hp_df = 
+  tibble(
+    title = hp_movie_title,
+    rev = hp_movie_money,
+    runtime = hp_movie_runtime)
+```
+API! (Click on "API DOCS") When dealing with API, you need to spend some time on finding where could you get the API and how could you get it with the correct form.
+```{r}
+nyc_water_df = 
+  GET("https://data.cityofnewyork.us/resource/ia2d-e54m.csv") %>% 
+  content("parsed")
+```
+
+```{r}
+nyc_water_df_json = 
+  GET("https://data.cityofnewyork.us/resource/waf7-5gvc.json") %>% 
+  content("text") %>%
+  jsonlite::fromJSON() %>%
+  as_tibble()
+```
+
