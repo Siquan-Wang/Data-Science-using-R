@@ -178,3 +178,4 @@ Mutate is to change the df (like adding a new column or something), but summariz
 ##lag() function only works with the long formate
 
 group_by() only works within the code chunk if you do not save it
+
