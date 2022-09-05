@@ -93,3 +93,4 @@ nest_lm_res %>%
   knitr::kable(digits = 3)
 ```
 
+
