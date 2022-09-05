@@ -149,3 +149,4 @@ ggplot(weather_df, aes(x = tmax, y = name)) +
 ```
 You should keep an eye on it!
 Could use width. height command in your code!
+
