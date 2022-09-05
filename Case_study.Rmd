@@ -97,3 +97,4 @@ nyc_airbnb %>%
   addMarkers(~lat, ~long)#Longitude and latitude coordinates
 ```
 
+
